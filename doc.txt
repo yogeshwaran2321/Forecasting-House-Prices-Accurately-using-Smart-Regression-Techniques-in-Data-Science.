@@ -1,0 +1,51 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+
+# Load trained model
+@st.cache_resource
+def load_model():
+    model = joblib.load("best_model.pkl")  # Save this from your training code using joblib
+    return model
+
+model = load_model()
+
+st.title("California House Price Predictor")
+st.markdown("Enter the values below to predict the median house value (in USD).")
+
+# Input fields
+longitude = st.slider("Longitude", -124.0, -114.0, step=0.1)
+latitude = st.slider("Latitude", 32.0, 42.0, step=0.1)
+housing_median_age = st.slider("Housing Median Age", 0, 52, step=1)
+total_rooms = st.slider("Total Rooms", 0, 40000, step=100)
+total_bedrooms = st.slider("Total Bedrooms", 0, 7000, step=10)
+population = st.slider("Population", 0, 50000, step=100)
+households = st.slider("Households", 0, 7000, step=10)
+median_income = st.slider("Median Income", 0.0, 15.0, step=0.1)
+ocean_proximity = st.selectbox("Ocean Proximity", ['<1H OCEAN', 'INLAND', 'NEAR OCEAN', 'NEAR BAY', 'ISLAND'])
+
+# Prediction function
+def predict():
+    input_data = pd.DataFrame({
+        'longitude': [longitude],
+        'latitude': [latitude],
+        'housing_median_age': [housing_median_age],
+        'total_rooms': [np.log1p(total_rooms)],
+        'total_bedrooms': [total_bedrooms],
+        'population': [np.log1p(population)],
+        'households': [households],
+        'median_income': [median_income],
+        'ocean_proximity': [ocean_proximity],
+        'rooms_per_household': [np.log1p(total_rooms) / households if households else 0],
+        'bedrooms_per_room': [total_bedrooms / np.log1p(total_rooms) if total_rooms else 0],
+        'population_per_household': [np.log1p(population) / households if households else 0]
+    })
+    prediction = model.predict(input_data)
+    usd_value = np.expm1(prediction[0])  # Convert log1p back
+    return usd_value
+
+# Show prediction
+if st.button("Predict House Value"):
+    result = predict()
+    st.success(f"Predicted House Value: ${result:,.2f} USD")
